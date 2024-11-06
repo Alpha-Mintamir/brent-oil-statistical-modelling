@@ -43,3 +43,29 @@ def column_summary(df):
     
     summary_df = pd.DataFrame(summary_data)
     return summary_df
+
+def evaluate_event_impact(dataframe, event_date, window):
+    start_date = event_date - pd.Timedelta(days=window)
+    end_date = event_date + pd.Timedelta(days=window)
+    
+    event_window_data = dataframe[start_date:end_date]
+    if len(event_window_data) == 0:
+        return None
+    
+    event_window_data['Returns'] = event_window_data['Price'].pct_change()
+    
+    return {
+        'price_change': (event_window_data['Price'][-1] / event_window_data['Price'][0] - 1) * 100,
+        'max_drawdown': (event_window_data['Price'] / event_window_data['Price'].cummax() - 1).min() * 100,
+        'volatility': event_window_data['Returns'].std() * np.sqrt(252) * 100
+    }
+
+def calculate_event_impacts(df, events_df, analysis_window):
+    """Calculate impact for each event."""
+    event_impact_results = []
+    for _, event in events_df.iterrows():
+        impact = evaluate_event_impact(df, event['Date'], analysis_window)
+        if impact:
+            impact['Event'] = event['Event']
+            event_impact_results.append(impact)
+    return event_impact_results
